@@ -1,0 +1,110 @@
+---
+title: "Creating and Managing Folders in Bookmarks"
+sidebarTitle: "Folders"
+description: "Organize your shared bookmarks into folders with custom emoji, color labels, and pin-to-top support. Learn how to create, edit, pin, and delete folders."
+---
+
+Folders are the top-level organizational unit in Bookmarks. Every link lives inside a folder, and all visitors see the same folder structure in real time. Folders support a custom emoji, a color label, and a pinned flag that keeps important folders permanently at the top of the page.
+
+<Warning>
+  Deleting a folder **permanently removes the folder and every link inside it** for all visitors. This action cannot be undone. Export your data first if you need a backup.
+</Warning>
+
+## Creating a Folder
+
+Creating a folder is public — no password is required — so any visitor can add a new organizational category to the shared collection.
+
+Click **📁 New Folder** in the toolbar, or open the command palette (⌘K / Ctrl+K) and select **📁 New Folder**. Fill in the fields and click **Create**:
+
+| Field | Required | Default | Notes |
+|---|---|---|---|
+| **Name** | Yes | — | The folder's display label |
+| **Emoji** | No | 📁 | A single emoji shown in the header and throughout the UI |
+| **Color** | No | — | A hex color chosen via the browser's color picker |
+
+The folder appears instantly in the folder list for all visitors and can immediately receive links.
+
+<Tip>
+  Use the color picker to give each folder a unique accent. The color appears as a dot next to the folder name in the header and as a left-border highlight on every link card inside that folder — making it easy to visually scan which folder a link belongs to when browsing a mixed view.
+</Tip>
+
+## Folder Metadata
+
+Each `Folder` object in the database carries the following fields:
+
+```typescript
+interface Folder {
+  id: string;        // UUID, assigned automatically
+  name: string;      // Display name
+  emoji: string;     // Single emoji character, default "📁"
+  links: Link[];     // All links in this folder
+  pinned?: boolean;  // If true, sorts to the top of the page
+  color?: string;    // Hex color string, e.g. "#7c6cff"
+  collapsed?: boolean; // Not persisted — local UI state only
+  createdAt?: string;  // ISO timestamp set at creation
+}
+```
+
+The `collapsed` field is managed entirely in local React state and is **not written to the database**. Each visitor's collapse state is independent and resets on page refresh.
+
+## Folder Sort Order
+
+Folders are always displayed in two tiers:
+
+1. **Pinned folders** — sorted to the top, in the order they were pinned (creation order within the pinned set)
+2. **Unpinned folders** — shown below in the order they were created, oldest first
+
+The sort order cannot currently be changed manually; use the pin feature to promote important folders.
+
+## Folder Header Actions
+
+Each folder's header bar contains a row of icon buttons on the right side. These are always visible (not hover-only):
+
+<CardGroup cols={2}>
+  <Card title="⧉ Open all" icon="arrow-up-right-from-square">
+    Opens every link in the folder as a new browser tab simultaneously. A toast confirms the number of tabs opened. No password required.
+  </Card>
+  <Card title="✎ Edit" icon="pencil">
+    Opens the Edit Folder modal. Only visible when admin mode is unlocked. Requires the admin password.
+  </Card>
+  <Card title="🗑️ Delete" icon="trash">
+    Opens a delete confirmation modal with an admin password field. Deletes the folder and all its links for everyone.
+  </Card>
+  <Card title="▾ / ▸ Collapse" icon="chevron-down">
+    Toggles the folder's link list open or closed. State is local to each browser tab and not shared with other visitors.
+  </Card>
+</CardGroup>
+
+Clicking anywhere on the folder header (outside the action buttons) also toggles the collapse state.
+
+## Editing a Folder
+
+Click the **✎** button in a folder's header (visible only when admin mode is unlocked) to open the Edit Folder modal. The form is pre-filled with the current name, emoji, and color.
+
+If admin mode is not yet active, an **Admin password** field appears at the bottom of the form. Enter the password and click **Save** to apply the changes.
+
+Editable fields:
+
+| Field | Notes |
+|---|---|
+| **Name** | Required |
+| **Emoji** | Up to 4 characters (to support multi-codepoint emoji) |
+| **Color** | Color picker; clear the value to remove the color accent |
+
+## Pinning and Unpinning Folders
+
+Pinned folders sort above all unpinned folders. Pinning is managed through the **Admin panel** — the per-folder toggle is not available on the main page without admin access.
+
+To pin or unpin a folder:
+
+1. Click **🔐 Admin** in the toolbar and unlock with the admin password.
+2. In the Admin panel, scroll to the **Pin / unpin folders** section.
+3. Click the folder's button to toggle its `pinned` flag. A 📌 badge appears on the button and in the folder header when a folder is pinned.
+
+The change takes effect immediately and is visible to all visitors.
+
+## Deleting a Folder
+
+Click the **🗑️** button in a folder's header to open the deletion confirmation modal. The modal displays the folder name and a warning that the action affects all visitors. Enter the admin password (or omit it if admin mode is already unlocked), then click **Delete**.
+
+The folder and **all links it contains** are permanently removed from the Upstash Redis store. There is no undo. Use **Admin → Export JSON** before performing this action if you may need to recover the data.

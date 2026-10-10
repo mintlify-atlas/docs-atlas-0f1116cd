@@ -1,0 +1,107 @@
+---
+title: "Activity Log: Track Changes to Your Bookmarks"
+sidebarTitle: "Activity Log"
+description: "The Bookmarks activity log records the last 50 actions — adds, edits, deletes, moves, imports, and resets — with timestamps visible in the admin panel."
+---
+
+Every time a bookmark or folder is created, changed, or removed, the app appends a structured entry to the activity log stored inside `BookmarksData.activity` in Redis. The log gives admins a clear audit trail of who did what and when, surfaced directly in the Admin panel without any additional infrastructure.
+
+## How the log works
+
+The activity array is part of the same Redis key (`bookmarks:shared`) as folders and settings, so it is read and written atomically alongside bookmark data. Each new entry is **prepended** to the front of the array so the most recent action always appears first.
+
+The array is capped at **50 entries**. When a new entry would push the count above 50, the oldest entries are dropped using a `.slice(0, 50)` trim applied on every write. There is no separate TTL or rolling window — only entry count is bounded.
+
+The **Admin panel** surfaces the 20 most recent entries in its **Recent activity** section, showing the human-readable `detail` string alongside a relative timestamp (e.g. `"5m ago"`). The full 50-entry array is always available via the API.
+
+## ActivityEntry interface
+
+Each log entry conforms to the `ActivityEntry` interface defined in `lib/types.ts`:
+
+```typescript
+interface ActivityEntry {
+  id: string;       // UUID (v4), uniquely identifies this entry
+  action: string;   // Machine-readable action type, e.g. "add", "edit", "delete"
+  detail: string;   // Human-readable description shown in the Admin panel
+  at: string;       // ISO 8601 timestamp, e.g. "2024-06-01T14:23:05.123Z"
+}
+```
+
+## Actions that generate log entries
+
+The table below lists every action that produces a log entry, along with the exact `detail` string written to the log. Angle-bracket values (`<name>`, `<folder>`, `<N>`) are substituted with live data at write time.
+
+| Action | `detail` format |
+|---|---|
+| `addLink` | `Added link "<name>"` |
+| `editLink` | `Edited link "<name>"` |
+| `deleteLink` | `Deleted link "<name>"` |
+| `addFolder` | `Added folder "<name>"` |
+| `editFolder` | `Edited folder "<name>"` |
+| `deleteFolder` | `Deleted folder "<name>"` |
+| `moveLink` | `Moved "<name>" to "<folder>"` |
+| `importData` | `Imported <N> folders` |
+| `reset` | `Reset to defaults` |
+| `clearAll` | `Cleared all bookmarks` |
+
+Two actions intentionally do **not** generate log entries:
+
+- **`toggleFavorite`** — starring or un-starring a link is treated as a personal preference, not a structural change.
+- **`trackClick`** — click-count increments happen on every link open and would flood the log with noise.
+
+## Viewing the log in the Admin panel
+
+<Steps>
+  <Step title="Open the Admin panel">
+    Click the **🔐 Admin** button in the toolbar and enter your admin password to unlock the session.
+  </Step>
+  <Step title="Scroll to Recent activity">
+    The **Recent activity** section is at the bottom of the Admin panel modal. It shows up to 20 entries with the `detail` text on the left and a relative timestamp on the right.
+  </Step>
+  <Step title="Read the full log via the API">
+    If you need all 50 entries, fetch `GET /api/bookmarks` and inspect the `activity` array in the response (see the example below).
+  </Step>
+</Steps>
+
+## Accessing log entries via the API
+
+The `GET /api/bookmarks` endpoint returns the entire `BookmarksData` object, including the full `activity` array. No authentication is required for read access.
+
+```typescript
+const res = await fetch('/api/bookmarks');
+const data = await res.json();
+const recentActivity = data.activity; // ActivityEntry[]
+
+recentActivity.forEach((entry) => {
+  console.log(`[${entry.at}] ${entry.action}: ${entry.detail}`);
+});
+```
+
+A sample log response might look like:
+
+```json
+[
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "action": "add",
+    "detail": "Added link \"GitHub\"",
+    "at": "2024-06-01T14:23:05.123Z"
+  },
+  {
+    "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "action": "import",
+    "detail": "Imported 4 folders",
+    "at": "2024-06-01T13:10:00.456Z"
+  },
+  {
+    "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+    "action": "delete",
+    "detail": "Deleted link \"Old Site\"",
+    "at": "2024-06-01T11:55:30.789Z"
+  }
+]
+```
+
+<Note>
+  The activity log is **append-only** — there is no API action to delete individual entries. The log is also fully cleared during `reset` (which replaces the dataset with factory defaults) and `clearAll` (which empties all folders). Both operations write a single corresponding entry (`"Reset to defaults"` or `"Cleared all bookmarks"`) as part of the same atomic write, so the log always reflects the action that cleared it.
+</Note>

@@ -1,0 +1,104 @@
+---
+title: "Admin Panel: Manage Your Bookmarks Site"
+sidebarTitle: "Admin Panel"
+description: "How to unlock and use the Bookmarks admin panel — covering authentication, editing links and folders, announcements, pin management, and site reset."
+---
+
+The admin panel is the control center for the shared Bookmarks site. Once unlocked, it grants access to destructive and configuration actions that are intentionally hidden from regular visitors: editing content, importing and exporting data, setting announcements, pinning folders, and resetting or clearing the entire dataset.
+
+<Note>
+  The admin session lives in React component state. It is **not persisted to localStorage or a cookie**. Closing the browser tab or refreshing the page automatically ends the session, and the password must be entered again next time.
+</Note>
+
+## What Admin Mode Unlocks
+
+Without admin access, visitors can add links and folders, click links, copy URLs, toggle favorites, and collapse folders. Unlocking admin mode additionally enables:
+
+- Editing link metadata (name, URL, tags, notes)
+- Editing folder metadata (name, emoji, color)
+- Moving links between folders
+- Deleting individual links
+- Deleting folders (and all their links)
+- Importing a JSON backup to replace all data
+- Exporting data as JSON or Netscape HTML
+- Setting the site-wide announcement banner
+- Pinning and unpinning folders
+- Resetting the site to the built-in default seed
+- Clearing all folders, links, and activity logs
+- Viewing the recent activity feed
+
+## Unlocking Admin Mode
+
+<Steps>
+  <Step title="Open the login modal">
+    Click **🔐 Admin** in the toolbar, or open the command palette (⌘K / Ctrl+K) and select **🔐 Admin Menu**. The Admin Login modal appears.
+  </Step>
+  <Step title="Enter the admin password">
+    Type the value of the `ADMIN_PASSWORD` environment variable that was set when the site was deployed. The password is verified server-side — it never leaves the browser except as part of the authenticated API request.
+  </Step>
+  <Step title="Click Unlock">
+    Click **Unlock**. On success, the Admin panel opens immediately and a toast notification confirms "Admin unlocked". The password is cached in React state for the remainder of the browser session.
+  </Step>
+</Steps>
+
+Once unlocked, individual destructive action modals (edit, move, delete) no longer prompt for the password — the cached credential is sent automatically.
+
+## Per-Action Password (Guest Access)
+
+Even without a persistent admin session, the password field is exposed inside every edit, move, and delete modal. This allows a site owner to share the password with a trusted visitor for a single one-off action, without granting them a full admin session.
+
+## Admin Panel Sections
+
+### Export JSON
+
+Downloads the complete `BookmarksData` object — all folders, links, settings, and activity — as a formatted `.json` file. The filename is timestamped (`bookmarks-YYYY-MM-DD.json`). Use this to back up data before any destructive operation or before migrating to a new deployment.
+
+### Export HTML
+
+Downloads a Netscape Bookmark File (the format understood by Chrome, Firefox, and Safari). Each folder becomes an `<H3>` section and each link becomes an `<A>` entry. Use this to import the collection directly into any browser's native bookmark manager.
+
+### Import JSON
+
+Opens a hidden file input that accepts a `.json` file. The file must match the `BookmarksData` schema (i.e. have a `folders` array). On a valid upload, the entire current dataset is **replaced** with the imported data. The import is logged in the activity feed. Requires the admin password to be active.
+
+### Announcement
+
+A text input in the **Site announcement** section lets you set a banner message displayed across the top of the page for all visitors. Enter the message and click **Save announcement**. Clear the field and save again to remove the banner. The message is stored in `SiteSettings.announcement` in the shared database.
+
+### Reset Defaults
+
+Replaces all current data with the built-in seed dataset (the default Hubs, Proxies, and Helios & Gust folders). A browser `confirm()` dialog asks for confirmation before the action is sent to the server.
+
+### Clear All
+
+Deletes every folder, every link, and the entire activity log. The site settings (theme, view mode, sort order) are preserved. A browser `confirm()` dialog asks for confirmation. After clearing, the page shows an empty state until new folders are created.
+
+<Warning>
+  **Reset defaults** and **Clear all** are irreversible and take effect immediately for every visitor currently on the site. Export a JSON backup before using either action if there is any chance you will need to recover the data.
+</Warning>
+
+### Lock Admin
+
+Click **🔒 Lock admin** to immediately clear the admin session from the current browser tab. The admin password is wiped from React state and the toolbar reverts to showing the locked 🔐 icon. Other browser tabs or other visitors are not affected.
+
+### Pin / Unpin Folders
+
+The **Pin / unpin folders** section lists every folder as a button. Clicking a button toggles the folder's `pinned` flag via the `editFolder` action. A 📌 badge appears on the button when the folder is currently pinned. Pinned folders always sort above unpinned folders on the main page, regardless of creation order.
+
+### Recent Activity
+
+The **Recent activity** section displays the last 20 entries from the activity log (the full log stores up to 50 entries in the database). Each entry shows the action description and a relative timestamp (e.g. "2m ago", "3h ago"). Logged events include adding, editing, moving, and deleting links and folders, imports, resets, and clears.
+
+## Admin Panel Quick Reference
+
+| Section | Requires admin | Affects all visitors |
+|---|---|---|
+| Export JSON | ✅ | ❌ (read-only) |
+| Export HTML | ✅ | ❌ (read-only) |
+| Import JSON | ✅ | ✅ |
+| Announcement | ✅ | ✅ |
+| Reset defaults | ✅ | ✅ |
+| Clear all | ✅ | ✅ |
+| Lock admin | ✅ | ❌ (local session only) |
+| Pin / unpin folders | ✅ | ✅ |
+| Recent activity | ✅ | ❌ (read-only) |

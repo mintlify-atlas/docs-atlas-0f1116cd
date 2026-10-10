@@ -1,0 +1,69 @@
+---
+title: "Bookmarks: Shared Real-Time Link Manager"
+sidebarTitle: "Introduction"
+description: "Bookmarks is a Next.js app backed by Upstash Redis that gives a group a single shared, editable bookmark collection — no accounts required."
+---
+
+Bookmarks is a Next.js 14 application that gives every visitor in a group the same live view of a curated link collection. Rather than each person maintaining a private browser bookmark folder that quickly goes stale, Bookmarks stores everything in a single Upstash Redis key and streams the current state to every connected client — so when one person adds a link or pins a folder, everyone sees it instantly.
+
+## How It Works
+
+The architecture is intentionally minimal. A Next.js frontend communicates with a single API route — `GET /api/bookmarks` to read the collection and `POST /api/bookmarks` with an `action` field to mutate it. All state lives in one Redis key, `bookmarks:shared`, which holds the full `BookmarksData` object: an array of folders (each containing links), an activity log, and a settings block.
+
+<Note>
+  Before every write, the previous snapshot is automatically saved to `bookmarks:shared:prev`, giving you a simple one-step undo layer. The store also refuses to replace real data with the built-in seed if it detects the seed looks smaller than what is already saved.
+</Note>
+
+## User Roles
+
+Bookmarks has two tiers of access, distinguished by whether a valid admin password is supplied on write actions:
+
+| Role | Capabilities |
+|------|-------------|
+| **Regular user** | Browse all folders and links, add new links and folders, toggle favorites, track clicks |
+| **Admin** | Everything above, plus edit/delete links and folders, move links between folders, import and export data, reset to defaults, set the announcement banner |
+
+The admin password is set via the `ADMIN_PASSWORD` environment variable (alias: `BOOKMARKS_ADMIN_PASSWORD`). If neither variable is set, admin actions are unrestricted — useful for local development, but always configure a password before going public.
+
+## Key Features
+
+Every feature described below ships out of the box with no plugins or extra configuration required.
+
+<CardGroup cols={2}>
+  <Card title="Real-Time Shared State" icon="arrows-rotate">
+    Every visitor reads from the same Upstash Redis key. Mutations are reflected immediately on the next page load or client refresh — no per-user accounts or sessions needed.
+  </Card>
+  <Card title="Folder Organization" icon="folder-open">
+    Folders carry an emoji, a hex accent color, and an optional pin flag. Pinned folders float to the top of the list. Individual links also support color labels and tags.
+  </Card>
+  <Card title="Command Palette ⌘K" icon="magnifying-glass">
+    Press <kbd>⌘K</kbd> (or <kbd>Ctrl K</kbd>) to open a fuzzy-search palette that scans every link name, URL, and tag across all folders instantly.
+  </Card>
+  <Card title="Click Tracking & Most Visited" icon="chart-bar">
+    Every outbound click increments a counter on the link. A "Most Visited" bar surfaces your top links automatically so frequent destinations stay one click away.
+  </Card>
+  <Card title="Tag Filtering and Sort Modes" icon="tag">
+    Links accept comma-separated tags. Filter the view by tag or switch between four sort modes: manual order, alphabetical, newest first, or most clicked.
+  </Card>
+  <Card title="Admin Panel" icon="shield-halved">
+    A password-protected admin panel lets authorized users edit or delete any link or folder, move links between folders, and view the recent activity log.
+  </Card>
+  <Card title="Import / Export" icon="file-arrow-up">
+    Import a previously exported JSON snapshot or a standard Netscape HTML bookmark file. Export the current collection as JSON at any time for backups or migration.
+  </Card>
+  <Card title="Dark / Light Theme" icon="sun">
+    The default theme is dark, but users can switch to light or auto (follows system preference). The active theme is persisted in Redis so it survives redeployments.
+  </Card>
+</CardGroup>
+
+## Data Safety Guard
+
+The store contains an intentional safety check: if Redis already holds a collection that is larger than the default seed data (`hubs`, `proxies`, `helios-gust` folders), the application will refuse to overwrite it with that seed. This prevents an accidental reset — for example, if a deployment re-runs initialization logic — from silently wiping a populated collection.
+
+<Tip>
+  To deliberately reset the collection to the default seed, use the **Reset** action in the Admin panel. That path bypasses the guard because it is an explicit, authenticated request.
+</Tip>
+
+## Next Steps
+
+Ready to get your own instance running? Head over to the [Quickstart](/quickstart) guide to deploy Bookmarks to Vercel in under five minutes.

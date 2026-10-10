@@ -1,0 +1,83 @@
+---
+title: "Bookmarks REST API Overview and Authentication"
+sidebarTitle: "Overview"
+description: "The Bookmarks API exposes two HTTP methods on /api/bookmarks — GET to read data and POST with an action string to mutate it. Admin actions require a password."
+---
+
+The Bookmarks API is a single-endpoint REST interface that powers a shared, real-time bookmark manager. All reads go through `GET /api/bookmarks` and all mutations go through `POST /api/bookmarks` using a JSON body with an `action` field. The endpoint is deployed on Vercel and marked `force-dynamic`, meaning responses are never cached — every request hits the live Redis store.
+
+## Base URL
+
+```
+https://your-app.vercel.app/api/bookmarks
+```
+
+Replace `your-app` with your actual Vercel project subdomain. The path `/api/bookmarks` is fixed.
+
+## HTTP Methods
+
+| Method | Purpose | Auth required |
+|--------|---------|---------------|
+| `GET` | Retrieve the full `BookmarksData` object | No |
+| `POST` | Execute a mutation action | Depends on action |
+
+### `GET /api/bookmarks`
+
+Returns the complete dataset — all folders, links, activity log, and site settings — as a JSON object. No request body or authentication is needed. See [GET /api/bookmarks](/api/get-bookmarks) for the full response schema.
+
+### `POST /api/bookmarks`
+
+Accepts a JSON body with at minimum an `action` field. Depending on the action, additional fields such as `folderId`, `name`, or `url` are required. Every successful POST returns the full updated `BookmarksData` object, so clients can replace their local state in one step. See [POST Actions](/api/actions) for the complete list of all 15 actions.
+
+## Authentication
+
+Admin actions require a `password` field in the POST body whose value must match the `ADMIN_PASSWORD` environment variable (also checked as `BOOKMARKS_ADMIN_PASSWORD`).
+
+<Note>
+  If neither `ADMIN_PASSWORD` nor `BOOKMARKS_ADMIN_PASSWORD` is set, the server runs in **dev mode** and all admin actions succeed without a password. Always configure a strong password before deploying to production.
+</Note>
+
+Public actions — `addLink`, `addFolder`, `toggleFavorite`, and `trackClick` — do not require a password and can be called by any visitor. All other actions are admin-only.
+
+## Response Format
+
+Every response body is JSON. A successful request — whether `GET` or `POST` — returns the full `BookmarksData` object:
+
+```json
+{
+  "folders": [ /* Folder[] */ ],
+  "activity": [ /* ActivityEntry[] */ ],
+  "settings": { /* SiteSettings */ }
+}
+```
+
+Errors return a flat object with a single `error` key:
+
+```json
+{ "error": "Folder not found" }
+```
+
+## Error Codes
+
+| Status | Meaning |
+|--------|---------|
+| `400` | Missing required fields, unknown action, or invalid payload |
+| `403` | Incorrect admin password |
+| `500` | Internal server error (Redis failure or unexpected exception) |
+
+## Quick Examples
+
+```bash
+# Read all bookmarks
+curl https://your-app.vercel.app/api/bookmarks
+
+# Add a link (public — no password needed)
+curl -X POST https://your-app.vercel.app/api/bookmarks \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"addLink","folderId":"hubs","name":"Example","url":"https://example.com"}'
+```
+
+## Next Steps
+
+- [GET /api/bookmarks](/api/get-bookmarks) — full response schema and field reference
+- [POST Actions](/api/actions) — all 15 mutation actions with parameters and examples

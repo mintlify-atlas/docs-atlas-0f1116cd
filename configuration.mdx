@@ -1,0 +1,82 @@
+---
+title: "Configure Bookmarks: Environment Variables and Settings"
+sidebarTitle: "Configuration"
+description: "All environment variables, Redis connection options, and runtime site settings available in Bookmarks — including admin password, theme, sort order, and announcement banner."
+---
+
+Bookmarks is configured through a small set of environment variables that control connectivity and access, plus a `SiteSettings` object stored directly in Redis that governs the runtime appearance and behavior of the UI. Environment variables are read at server startup; site settings are changed live through the Admin panel without requiring a redeployment.
+
+## Environment Variables
+
+These variables must be present in your deployment environment (`.env.local` for local development; the Vercel dashboard for production).
+
+<Warning>
+  Always set `ADMIN_PASSWORD` before making your deployment public. Without it, any visitor can edit, delete, or reset your entire bookmark collection.
+</Warning>
+
+<ParamField path="UPSTASH_REDIS_REST_URL" type="string" required>
+  The HTTPS REST endpoint for your Upstash Redis database. Found on the **REST API** tab of your database in the Upstash console. Looks like `https://your-db-name.upstash.io`.
+</ParamField>
+
+<ParamField path="UPSTASH_REDIS_REST_TOKEN" type="string" required>
+  The bearer token used to authenticate requests to the Upstash Redis REST API. Found alongside the REST URL in the Upstash console. Keep this value secret — it grants full read and write access to the database.
+</ParamField>
+
+<ParamField path="ADMIN_PASSWORD" type="string">
+  The password required to perform admin actions: editing or deleting links and folders, moving links between folders, importing data, resetting to defaults, and setting the announcement banner. Alias: `BOOKMARKS_ADMIN_PASSWORD` (the application checks both variables and uses whichever is set). If neither variable is set, all admin actions are permitted without a password — acceptable for local development only.
+</ParamField>
+
+## Redis Data Keys
+
+All application state is stored in two Redis keys. You do not need to create or initialize these manually; the application manages them automatically.
+
+| Key | Purpose |
+|-----|---------|
+| `bookmarks:shared` | The primary data key. Holds the complete `BookmarksData` object: all folders and their links, the recent activity log (capped at 50 entries), and the `SiteSettings` block. |
+| `bookmarks:shared:prev` | A snapshot of the previous state of `bookmarks:shared`, saved automatically before every write operation. Serves as a simple one-step undo layer in the Admin panel. |
+
+<Note>
+  The `bookmarks:shared:prev` key is overwritten on every successful save, so it only preserves the single most recent prior state — not a full history.
+</Note>
+
+## Site Settings
+
+The `SiteSettings` object is stored as part of the `BookmarksData` value at `bookmarks:shared`. Settings are updated at runtime via the Admin panel or the `setAnnouncement` API action — they do not correspond to environment variables and survive redeployments because they live in Redis rather than in the application code.
+
+<Note>
+  Because site settings persist in Redis, changing the default values in source code has no effect on a running instance. Use the Admin panel to update settings on a live deployment.
+</Note>
+
+<ParamField path="announcement" type="string">
+  Optional banner text displayed at the top of every page. Set or cleared through the **Announcement** field in the Admin panel, which calls the `setAnnouncement` action. An empty string hides the banner entirely.
+</ParamField>
+
+<ParamField path="theme" type='"dark" | "light" | "auto"'>
+  The default display theme for all visitors. Defaults to `"dark"` when not explicitly set.
+
+  | Value | Behavior |
+  |-------|----------|
+  | `"dark"` | Always render the dark color scheme |
+  | `"light"` | Always render the light color scheme |
+  | `"auto"` | Follow the visitor's operating-system preference via `prefers-color-scheme` |
+</ParamField>
+
+<ParamField path="viewMode" type='"grid" | "list"'>
+  The default layout used to display links within each folder. Defaults to `"grid"`.
+
+  | Value | Behavior |
+  |-------|----------|
+  | `"grid"` | Display links as cards in a multi-column grid |
+  | `"list"` | Display links as compact rows in a single-column list |
+</ParamField>
+
+<ParamField path="sortBy" type='"name" | "newest" | "clicks" | "manual"'>
+  The default sort order applied to links within folders. Defaults to `"manual"`.
+
+  | Value | Behavior |
+  |-------|----------|
+  | `"manual"` | Links appear in the order they were added or last reordered |
+  | `"name"` | Links are sorted alphabetically by title |
+  | `"newest"` | Links are sorted by `createdAt` descending (most recently added first) |
+  | `"clicks"` | Links are sorted by click count descending (most visited first) |
+</ParamField>

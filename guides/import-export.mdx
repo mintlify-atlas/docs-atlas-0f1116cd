@@ -1,0 +1,157 @@
+---
+title: "Import and Export Bookmarks: Backup and Restore"
+sidebarTitle: "Import / Export"
+description: "Back up your entire Bookmarks dataset as JSON or Netscape HTML, and restore it from a JSON file — with built-in safeguards against overwriting real data."
+---
+
+All import and export operations are available in the **Admin panel**, which requires your admin password to unlock. Exports run entirely in the browser — your data is serialised from the live Redis state and downloaded as a file without any intermediate server step. Imports send the file contents to the `POST /api/bookmarks` endpoint, where the server validates and atomically replaces the stored dataset.
+
+## Exporting as JSON
+
+The JSON export captures a complete, machine-readable snapshot of every folder, link, activity entry, and site setting stored in Redis.
+
+<Steps>
+  <Step title="Open the Admin panel">
+    Click the **🔐 Admin** button in the toolbar and enter your admin password to unlock it.
+  </Step>
+  <Step title="Click Export JSON">
+    Press the **📦 Export JSON** card. The browser immediately downloads a file named `bookmarks-YYYY-MM-DD.json` (dated to today, e.g. `bookmarks-2024-06-01.json`).
+  </Step>
+  <Step title="Store the file safely">
+    Keep the file somewhere outside the app — a local drive, cloud storage, or version-controlled repository — so you can restore from it at any time.
+  </Step>
+</Steps>
+
+The downloaded file is the full `BookmarksData` object serialised with two-space indentation:
+
+```json
+{
+  "folders": [
+    {
+      "id": "hubs",
+      "name": "Hubs",
+      "emoji": "🏠",
+      "pinned": true,
+      "color": "#7c6cff",
+      "links": [
+        {
+          "id": "home",
+          "name": "Home",
+          "url": "https://example.com",
+          "clicks": 5,
+          "tags": ["main"],
+          "createdAt": "2024-01-15T10:00:00.000Z"
+        }
+      ]
+    }
+  ],
+  "activity": [],
+  "settings": {
+    "theme": "dark",
+    "viewMode": "grid",
+    "sortBy": "manual"
+  }
+}
+```
+
+The three top-level keys map directly to the `BookmarksData` TypeScript interface:
+
+| Key | Type | Contents |
+|---|---|---|
+| `folders` | `Folder[]` | Every folder with its nested `links` array |
+| `activity` | `ActivityEntry[]` | Up to 50 recent activity log entries |
+| `settings` | `SiteSettings` | Theme, view mode, sort order, and announcement text |
+
+<Tip>
+  Schedule a weekly JSON export and commit it to a private repository. Because the entire dataset fits in a single file, restoring from any point in time is as simple as re-importing that snapshot.
+</Tip>
+
+## Exporting as HTML
+
+The HTML export produces a **Netscape Bookmark File** — the interchange format understood by every major browser's built-in bookmark importer.
+
+<Steps>
+  <Step title="Open the Admin panel">
+    Unlock the Admin panel with your admin password if it is not already open.
+  </Step>
+  <Step title="Click Export HTML">
+    Press the **🌐 Export HTML** card. The browser downloads `bookmarks-YYYY-MM-DD.html`.
+  </Step>
+  <Step title="Import into a browser">
+    Open your browser's bookmark manager and use its **Import bookmarks from file** option. The folder hierarchy — including emoji and folder name headings — is preserved.
+  </Step>
+</Steps>
+
+The exported file is compatible with:
+
+<CardGroup cols={2}>
+  <Card title="Chrome / Edge" icon="chrome">
+    Bookmarks Manager → ⋮ menu → **Import bookmarks**
+  </Card>
+  <Card title="Firefox" icon="firefox">
+    Bookmarks menu → **Manage Bookmarks** → Import and Backup → **Import Bookmarks from HTML**
+  </Card>
+  <Card title="Safari" icon="safari">
+    File menu → **Import From** → **Bookmarks HTML File**
+  </Card>
+  <Card title="Any Chromium browser" icon="globe">
+    Uses the same Netscape format; look for an import option in the bookmark manager.
+  </Card>
+</CardGroup>
+
+Each folder becomes an `<H3>` heading in the HTML, prefixed with its emoji. Links are rendered as `<A>` tags nested inside the folder's `<DL>` block. Tags, click counts, and notes are not included in the HTML export — use the JSON export if you need the full dataset.
+
+## Importing JSON
+
+Importing replaces the entire Redis dataset with the contents of the uploaded file. The operation is admin-only and includes several safety checks before the write is committed.
+
+<Steps>
+  <Step title="Unlock the Admin panel">
+    Click **🔐 Admin** and enter your password. The Import JSON option is only available once the admin session is active.
+  </Step>
+  <Step title="Click Import JSON">
+    Press the **📥 Import JSON** card. A hidden file-picker opens automatically.
+  </Step>
+  <Step title="Select your backup file">
+    Choose the `.json` file you previously exported. The app reads the file in the browser, parses it, and sends the `folders` payload to the API.
+  </Step>
+  <Step title="Confirm the success toast">
+    A toast notification reading **"Imported!"** confirms that the data has been written to Redis. All visitors see the restored dataset immediately.
+  </Step>
+</Steps>
+
+### Validation and safety guards
+
+The server applies the following checks before accepting an import:
+
+**Format validation** — the uploaded file must parse as valid JSON and contain a `folders` array. Files that fail this check are rejected client-side before the API is called, and a toast reading `"Invalid JSON file"` is shown.
+
+**Default-seed guard** — the store detects when an import looks like the factory default dataset (folders with IDs `helios-gust`, `hubs`, and `proxies`, with ten or fewer total links). If the guard triggers and the existing dataset has *more* links than the incoming payload, the write is blocked and the API returns:
+
+```
+Refusing to overwrite saved bookmarks with the default set.
+```
+
+This prevents accidentally wiping a populated dataset by re-importing an unmodified seed file.
+
+**Snapshot before write** — immediately before every accepted write, the current Redis value is copied to the key `bookmarks:shared:prev`. This gives you one level of undo if an import goes wrong.
+
+**Activity entry** — a log entry reading `Imported <N> folders` is prepended to the activity log as part of the same write, where `N` is the number of folders in the imported file.
+
+<Warning>
+  Importing replaces **all** existing data — folders, links, activity, and settings — for **every visitor** simultaneously. There is no partial-import or merge mode. Verify the file you are importing before confirming, and keep your most recent JSON export as a fallback.
+</Warning>
+
+## Using the REST API for Import
+
+You can import data programmatically without using the Admin panel UI by calling `POST /api/bookmarks` directly with `action: importData`.
+
+```bash
+curl -X POST https://your-app.vercel.app/api/bookmarks \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"importData","password":"your-admin-password","payload":{"folders":[...]}}'
+```
+
+Replace `your-admin-password` with the value of your `ADMIN_PASSWORD` environment variable and provide the full `folders` array in the `payload` field. The `activity` and `settings` keys are optional — the server normalises any missing fields to their defaults before writing.
+
+A successful response returns the full `BookmarksData` object (HTTP 200). An incorrect password returns HTTP 401; a missing or malformed `folders` array returns HTTP 400 with `{"error":"Invalid file"}`.

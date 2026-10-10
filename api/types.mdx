@@ -1,0 +1,220 @@
+---
+title: "TypeScript Data Types for the Bookmarks API"
+sidebarTitle: "Data Types"
+description: "Complete TypeScript interface definitions for BookmarksData, Folder, Link, SiteSettings, and ActivityEntry — the types returned by every Bookmarks API call."
+---
+
+Every response from the Bookmarks API — whether a `GET` read or a `POST` mutation — is shaped by five TypeScript interfaces defined in `lib/types.ts`. Understanding these types makes it straightforward to consume the API in a typed client, validate import payloads, or build a local mock. The top-level type is `BookmarksData`, which composes the other four.
+
+---
+
+## `Link`
+
+Represents a single bookmarked URL inside a folder.
+
+```typescript
+interface Link {
+  id: string;
+  name: string;
+  url: string;
+  icon?: string;
+  notes?: string;
+  tags?: string[];
+  favorite?: boolean;
+  clicks?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  color?: string;
+}
+```
+
+<ResponseField name="id" type="string" required>
+  UUID assigned by the server when the link is created via `addLink`. Used as the stable identifier in `editLink`, `deleteLink`, `moveLink`, `toggleFavorite`, and `trackClick`.
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Human-readable display name shown in the UI. Whitespace is trimmed on write.
+</ResponseField>
+
+<ResponseField name="url" type="string" required>
+  Full URL of the bookmark target. Whitespace is trimmed on write.
+</ResponseField>
+
+<ResponseField name="icon" type="string">
+  Reserved field for a custom icon URL or identifier. Not currently written by any action — present in the interface for forward compatibility.
+</ResponseField>
+
+<ResponseField name="notes" type="string">
+  Optional freeform text attached to the link, visible in the detail view.
+</ResponseField>
+
+<ResponseField name="tags" type="string[]">
+  Array of tag strings used for filtering and organisation. Populated from a comma-separated string or a string array on `addLink` and `editLink`.
+</ResponseField>
+
+<ResponseField name="favorite" type="boolean">
+  Whether the link has been starred. Toggled by `toggleFavorite`. Defaults to `undefined` (falsy) until first toggled.
+</ResponseField>
+
+<ResponseField name="clicks" type="number">
+  Running total of times the link has been clicked. Starts at `0` on creation and is incremented by `trackClick`.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp set by the server when the link is first saved (e.g. `"2024-01-15T10:00:00.000Z"`).
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string">
+  ISO 8601 timestamp updated by the server each time `editLink` modifies the link. Not present until the link has been edited at least once.
+</ResponseField>
+
+<ResponseField name="color" type="string">
+  Hex color string (e.g. `"#7c6cff"`) rendered as a colored left-border accent on the link card. Pass an empty string to `editLink` to remove it.
+</ResponseField>
+
+---
+
+## `Folder`
+
+Represents a named collection of links. Folders are the top-level organising unit in `BookmarksData`.
+
+```typescript
+interface Folder {
+  id: string;
+  name: string;
+  emoji: string;
+  links: Link[];
+  pinned?: boolean;
+  color?: string;
+  collapsed?: boolean;
+  createdAt?: string;
+}
+```
+
+<ResponseField name="id" type="string" required>
+  UUID assigned by the server when the folder is created via `addFolder`. Used as the stable identifier across all folder and link actions.
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Display name of the folder. Whitespace is trimmed on write.
+</ResponseField>
+
+<ResponseField name="emoji" type="string" required>
+  Emoji icon displayed next to the folder name. Defaults to `"📁"` when not supplied to `addFolder`.
+</ResponseField>
+
+<ResponseField name="links" type="Link[]" required>
+  Ordered array of links inside the folder. Always present; initialised to `[]` on creation.
+</ResponseField>
+
+<ResponseField name="pinned" type="boolean">
+  When `true`, the folder is surfaced at the top of the folders list regardless of sort order. Controlled via `editFolder`.
+</ResponseField>
+
+<ResponseField name="color" type="string">
+  Hex color accent string for the folder header. Set via `addFolder` or `editFolder`; pass `""` to remove.
+</ResponseField>
+
+<ResponseField name="collapsed" type="boolean">
+  Client-side UI state indicating whether the folder is collapsed. Stored in the data model so the collapsed state persists across sessions.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp set by the server when the folder is first saved.
+</ResponseField>
+
+---
+
+## `ActivityEntry`
+
+A single record in the mutation audit log. The log is capped at the 50 most recent entries and stored in `BookmarksData.activity`, newest first.
+
+```typescript
+interface ActivityEntry {
+  id: string;
+  action: string;
+  detail: string;
+  at: string;
+}
+```
+
+<ResponseField name="id" type="string" required>
+  UUID generated at the time the activity entry is created.
+</ResponseField>
+
+<ResponseField name="action" type="string" required>
+  Short label for the type of mutation. One of `"add"`, `"edit"`, `"delete"`, `"move"`, `"import"`, `"reset"`, or `"clear"`.
+</ResponseField>
+
+<ResponseField name="detail" type="string" required>
+  Human-readable description of what changed, e.g. `"Added link \"Homepage\""` or `"Moved \"Example\" to \"Dev Tools\""`.
+</ResponseField>
+
+<ResponseField name="at" type="string" required>
+  ISO 8601 timestamp of when the mutation occurred (e.g. `"2024-01-15T10:00:00.000Z"`).
+</ResponseField>
+
+<Note>
+  `toggleFavorite` and `trackClick` do not generate activity entries. All other mutations do.
+</Note>
+
+---
+
+## `SiteSettings`
+
+Site-wide display preferences. Stored as `BookmarksData.settings` and persisted across all mutations. `clearAll` preserves settings even when wiping all bookmark data.
+
+```typescript
+interface SiteSettings {
+  announcement?: string;
+  theme?: 'dark' | 'light' | 'auto';
+  viewMode?: 'grid' | 'list';
+  sortBy?: 'name' | 'newest' | 'clicks' | 'manual';
+}
+```
+
+<ResponseField name="announcement" type="string">
+  Site-wide banner text displayed to all visitors. Empty string or `undefined` hides the banner. Set via the `setAnnouncement` action.
+</ResponseField>
+
+<ResponseField name="theme" type='"dark" | "light" | "auto"'>
+  UI color scheme. Defaults to `"dark"` on first normalization.
+</ResponseField>
+
+<ResponseField name="viewMode" type='"grid" | "list"'>
+  Layout mode for link cards — a multi-column grid or a compact list. Defaults to `"grid"`.
+</ResponseField>
+
+<ResponseField name="sortBy" type='"name" | "newest" | "clicks" | "manual"'>
+  Default sort order for links within folders: alphabetical (`"name"`), most recently added (`"newest"`), most clicked (`"clicks"`), or user-defined drag order (`"manual"`). Defaults to `"manual"`.
+</ResponseField>
+
+---
+
+## `BookmarksData`
+
+The root type returned by every API call. Composes all four types above into a single serialisable object stored as one Redis key.
+
+```typescript
+interface BookmarksData {
+  folders: Folder[];
+  activity?: ActivityEntry[];
+  settings?: SiteSettings;
+}
+```
+
+<ResponseField name="folders" type="Folder[]" required>
+  Ordered array of all bookmark folders. Always present in API responses; may be an empty array after `clearAll`.
+</ResponseField>
+
+<ResponseField name="activity" type="ActivityEntry[]">
+  The 50 most recent mutation log entries, ordered newest first. Populated automatically by the server on normalization; defaults to `[]`.
+</ResponseField>
+
+<ResponseField name="settings" type="SiteSettings">
+  Site-wide display settings. Defaults to `{ theme: "dark", viewMode: "grid", sortBy: "manual" }` if not previously set.
+</ResponseField>
+
+<Note>
+  `BookmarksData` is the shape you must supply to the `importData` action's `payload` field. The `folders` key is required; `activity` and `settings` are optional and will be defaulted by the server if absent.
+</Note>

@@ -1,47 +1,93 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Deploy Bookmarks to Vercel in Under 5 Minutes"
+sidebarTitle: "Quickstart"
+description: "Step-by-step guide to deploy Bookmarks on Vercel with Upstash Redis — from cloning the repo to sharing your live bookmark page."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
+Getting Bookmarks up and running requires three things: a copy of the code, an Upstash Redis database for storage, and a place to host the Next.js app. The guide below walks through each step in order, ending with a live URL you can share with your group.
 
 ## Prerequisites
 
-Before you begin, you must have:
+Before you start, make sure you have the following available:
 
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
+- **Node.js 18 or later** — required by Next.js 14
+- **A Vercel account** — free tier is sufficient; sign up at [vercel.com](https://vercel.com)
+- **A free Upstash account** — sign up at [upstash.com](https://upstash.com) to provision a Redis database
 
-## Get started
+## Deployment Steps
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+  <Step title="Clone or Fork the Repository">
+    Clone the project to your local machine and navigate into the directory:
 
     ```bash
-    npm install your-package
+    git clone https://github.com/8030765-bot/bookmarks.git && cd bookmarks
     ```
+
+    If you plan to deploy via the Vercel GitHub integration (recommended), fork the repository on GitHub first so Vercel can track your branch for automatic redeployments.
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
+
+  <Step title="Install Dependencies">
+    Install all Node.js dependencies with npm:
 
     ```bash
-    your-cli init
+    npm install
     ```
+
+    The project depends on `next`, `react`, `@upstash/redis`, and `uuid`. No additional packages or build tooling are required.
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
+
+  <Step title="Create an Upstash Redis Database">
+    1. Log in to [console.upstash.com](https://console.upstash.com) and click **Create Database**.
+    2. Choose a name (e.g., `bookmarks`), select your preferred region, and leave the plan on **Free**.
+    3. Once the database is created, open the **REST API** tab.
+    4. Copy the values for **UPSTASH\_REDIS\_REST\_URL** and **UPSTASH\_REDIS\_REST\_TOKEN** — you'll need both in the next step.
+
+    The free Upstash tier allows up to 10,000 commands per day, which is more than enough for a shared bookmark collection with a small group.
+  </Step>
+
+  <Step title="Set Environment Variables">
+    Create a `.env.local` file in the project root with your credentials:
+
+    ```ini
+    UPSTASH_REDIS_REST_URL=https://your-db.upstash.io
+    UPSTASH_REDIS_REST_TOKEN=your-token-here
+    ADMIN_PASSWORD=your-secret-password
+    ```
+
+    Replace each value with your actual Upstash REST URL, token, and a strong password of your choosing. The `ADMIN_PASSWORD` value protects all edit, delete, import, and reset actions.
+  </Step>
+
+  <Step title="Run Locally">
+    Start the Next.js development server:
 
     ```bash
-    your-cli start
+    npm run dev
     ```
+
+    Open [http://localhost:3000](http://localhost:3000) in your browser. On the first visit, Redis will be empty and the application will automatically seed the collection with the default folders (`Hubs`, `Proxies`, `Helios & gust`). You should see the full bookmark UI immediately.
+  </Step>
+
+  <Step title="Deploy to Vercel">
+    1. Push your local repository (or your fork) to GitHub.
+    2. Go to the [Vercel dashboard](https://vercel.com/new) and click **Add New Project**.
+    3. Import your GitHub repository. Vercel will detect the Next.js framework automatically.
+    4. In the **Environment Variables** section, add the three variables from your `.env.local`:
+       - `UPSTASH_REDIS_REST_URL`
+       - `UPSTASH_REDIS_REST_TOKEN`
+       - `ADMIN_PASSWORD`
+    5. Click **Deploy**. Vercel will build and publish your app in about 60 seconds.
+
+    Once the build completes, Vercel provides a public URL (e.g., `https://bookmarks-yourusername.vercel.app`). Share that URL with anyone who should have access to the bookmark collection.
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+<Note>
+  If `ADMIN_PASSWORD` is not set, admin actions — including edit, delete, import, and reset — are unrestricted and require no password. This is intentional for local development but **must not be used in production**. Always set a strong `ADMIN_PASSWORD` before sharing your deployment URL.
+</Note>
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
+<Tip>
+  The default seed data (folders `Hubs`, `Proxies`, and `Helios & gust`) loads automatically the first time the application starts against an empty Redis database. You do not need to run any initialization script or seed command — simply visit the page and the store will populate itself.
 </Tip>
+
+For a full reference of all available environment variables, Redis data keys, and runtime site settings, see the [Configuration](/configuration) guide.

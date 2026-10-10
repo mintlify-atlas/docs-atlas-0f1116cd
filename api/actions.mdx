@@ -1,0 +1,486 @@
+---
+title: "POST /api/bookmarks — All Mutation Actions Reference"
+sidebarTitle: "POST Actions"
+description: "Complete reference for all 15 POST actions on /api/bookmarks — from addLink and addFolder to importData, reset, and clearAll. Each action returns the full updated dataset."
+---
+
+Every mutation in the Bookmarks API is performed by sending a `POST` request to `/api/bookmarks` with a JSON body that includes at minimum an `action` field. The server resolves the action, updates the Redis store, and returns the full updated `BookmarksData` object — so clients can replace their local state in a single round-trip.
+
+Admin-only actions additionally require a `"password"` field matching the `ADMIN_PASSWORD` environment variable. See [Overview](/api/overview) for authentication details.
+
+<Note>
+  Sending an unrecognised value for `action` returns HTTP `400` with `{ "error": "Unknown action" }`.
+</Note>
+
+---
+
+## Public Actions
+
+Public actions do not require a password and can be called by any visitor.
+
+---
+
+### `verifyAdmin`
+
+Validates the supplied password against `ADMIN_PASSWORD` without performing any data change. Returns the full current `BookmarksData` so the client can initialise its state immediately after unlocking the admin UI.
+
+<ParamField body="action" type="string" required>
+  Must be `"verifyAdmin"`.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  The admin password to verify. Returns HTTP `403` if incorrect.
+</ParamField>
+
+```bash
+curl -X POST https://your-app.vercel.app/api/bookmarks \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"verifyAdmin","password":"s3cr3t"}'
+```
+
+---
+
+### `addLink`
+
+Appends a new link to an existing folder. The link is assigned a UUID, a `createdAt` timestamp, and an initial `clicks` count of `0`. An activity entry (`"add"`) is recorded.
+
+<ParamField body="action" type="string" required>
+  Must be `"addLink"`.
+</ParamField>
+
+<ParamField body="folderId" type="string" required>
+  ID of the folder to add the link into. Returns HTTP `400` if the folder does not exist.
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Display name for the link. Whitespace is trimmed.
+</ParamField>
+
+<ParamField body="url" type="string" required>
+  Full URL of the link. Whitespace is trimmed.
+</ParamField>
+
+<ParamField body="tags" type="string | string[]">
+  Optional tags. Pass an array of strings (`["tag1","tag2"]`) or a single comma-separated string (`"tag1,tag2"`). Empty entries are filtered out.
+</ParamField>
+
+<ParamField body="notes" type="string">
+  Optional freeform notes attached to the link.
+</ParamField>
+
+<ParamField body="color" type="string">
+  Optional hex color string (e.g. `"#7c6cff"`) used to render a colored left-border accent on the link card.
+</ParamField>
+
+```bash
+curl -X POST https://your-app.vercel.app/api/bookmarks \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "action": "addLink",
+    "folderId": "hubs",
+    "name": "Example",
+    "url": "https://example.com",
+    "tags": ["main", "tools"],
+    "color": "#7c6cff"
+  }'
+```
+
+---
+
+### `addFolder`
+
+Creates a new folder at the end of the folders list. The folder is assigned a UUID and a `createdAt` timestamp. An activity entry (`"add"`) is recorded.
+
+<ParamField body="action" type="string" required>
+  Must be `"addFolder"`.
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Display name for the folder. Returns HTTP `400` if empty or missing.
+</ParamField>
+
+<ParamField body="emoji" type="string">
+  Emoji icon shown next to the folder name. Defaults to `"📁"` if omitted.
+</ParamField>
+
+<ParamField body="color" type="string">
+  Optional hex color for the folder accent. Stored on the `Folder` object and used for UI theming.
+</ParamField>
+
+```bash
+curl -X POST https://your-app.vercel.app/api/bookmarks \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"addFolder","name":"Dev Tools","emoji":"🛠️","color":"#f97316"}'
+```
+
+---
+
+### `toggleFavorite`
+
+Flips the `favorite` boolean on a link between `true` and `false`. This action does **not** generate an activity log entry and does not require a password.
+
+<ParamField body="action" type="string" required>
+  Must be `"toggleFavorite"`.
+</ParamField>
+
+<ParamField body="folderId" type="string" required>
+  ID of the folder containing the link. Returns HTTP `400` if not found.
+</ParamField>
+
+<ParamField body="linkId" type="string" required>
+  ID of the link to toggle. Returns HTTP `400` if not found.
+</ParamField>
+
+```bash
+curl -X POST https://your-app.vercel.app/api/bookmarks \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"toggleFavorite","folderId":"hubs","linkId":"home"}'
+```
+
+---
+
+### `trackClick`
+
+Increments the `clicks` counter on a link by `1`. This action does **not** generate an activity log entry. If either the folder or the link is not found, the action returns the current data silently without erroring — making it safe to fire-and-forget from a client click handler.
+
+<ParamField body="action" type="string" required>
+  Must be `"trackClick"`.
+</ParamField>
+
+<ParamField body="folderId" type="string" required>
+  ID of the folder containing the link.
+</ParamField>
+
+<ParamField body="linkId" type="string" required>
+  ID of the link whose click count should be incremented.
+</ParamField>
+
+```bash
+curl -X POST https://your-app.vercel.app/api/bookmarks \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"trackClick","folderId":"hubs","linkId":"home"}'
+```
+
+---
+
+## Admin Actions
+
+All admin actions require a `"password"` field in the request body matching the `ADMIN_PASSWORD` environment variable. Requests with a missing or incorrect password return HTTP `403`.
+
+---
+
+### `editLink`
+
+Updates one or more metadata fields on an existing link. Only fields that are present and non-empty in the request body are applied — omitted fields are left unchanged. Sets `updatedAt` to the current timestamp. An activity entry (`"edit"`) is recorded.
+
+<ParamField body="action" type="string" required>
+  Must be `"editLink"`.
+</ParamField>
+
+<ParamField body="folderId" type="string" required>
+  ID of the folder containing the link.
+</ParamField>
+
+<ParamField body="linkId" type="string" required>
+  ID of the link to update.
+</ParamField>
+
+<ParamField body="name" type="string">
+  New display name. Applied only if non-empty after trimming.
+</ParamField>
+
+<ParamField body="url" type="string">
+  New URL. Applied only if non-empty after trimming.
+</ParamField>
+
+<ParamField body="tags" type="string | string[]">
+  Replacement tag list. Accepts an array or a comma-separated string. Passing `""` clears all tags.
+</ParamField>
+
+<ParamField body="notes" type="string">
+  Replacement notes text.
+</ParamField>
+
+<ParamField body="color" type="string">
+  Replacement hex color. Pass an empty string `""` to remove the color accent.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Admin password.
+</ParamField>
+
+```bash
+curl -X POST https://your-app.vercel.app/api/bookmarks \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "action": "editLink",
+    "folderId": "hubs",
+    "linkId": "home",
+    "name": "Homepage",
+    "tags": "main,updated",
+    "password": "s3cr3t"
+  }'
+```
+
+---
+
+### `deleteLink`
+
+Permanently removes a link from its folder. An activity entry (`"delete"`) is recorded using the link's name before deletion.
+
+<ParamField body="action" type="string" required>
+  Must be `"deleteLink"`.
+</ParamField>
+
+<ParamField body="folderId" type="string" required>
+  ID of the folder containing the link.
+</ParamField>
+
+<ParamField body="linkId" type="string" required>
+  ID of the link to delete.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Admin password.
+</ParamField>
+
+```bash
+curl -X POST https://your-app.vercel.app/api/bookmarks \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"deleteLink","folderId":"hubs","linkId":"home","password":"s3cr3t"}'
+```
+
+---
+
+### `editFolder`
+
+Updates one or more metadata fields on an existing folder. Only fields present in the request body are applied. An activity entry (`"edit"`) is recorded.
+
+<ParamField body="action" type="string" required>
+  Must be `"editFolder"`.
+</ParamField>
+
+<ParamField body="folderId" type="string" required>
+  ID of the folder to edit. The field `id` is also accepted as an alias.
+</ParamField>
+
+<ParamField body="name" type="string">
+  New display name. Applied only if non-empty after trimming.
+</ParamField>
+
+<ParamField body="emoji" type="string">
+  New emoji icon. Applied only if non-empty.
+</ParamField>
+
+<ParamField body="color" type="string">
+  New hex color accent. Pass `""` to remove.
+</ParamField>
+
+<ParamField body="pinned" type="boolean">
+  Set to `true` to pin the folder to the top of the list; `false` to unpin.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Admin password.
+</ParamField>
+
+```bash
+curl -X POST https://your-app.vercel.app/api/bookmarks \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "action": "editFolder",
+    "folderId": "hubs",
+    "name": "Main Hubs",
+    "pinned": true,
+    "password": "s3cr3t"
+  }'
+```
+
+---
+
+### `deleteFolder`
+
+Permanently removes a folder and **all links inside it**. An activity entry (`"delete"`) is recorded using the folder's name.
+
+<ParamField body="action" type="string" required>
+  Must be `"deleteFolder"`.
+</ParamField>
+
+<ParamField body="folderId" type="string" required>
+  ID of the folder to delete.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Admin password.
+</ParamField>
+
+```bash
+curl -X POST https://your-app.vercel.app/api/bookmarks \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"deleteFolder","folderId":"hubs","password":"s3cr3t"}'
+```
+
+---
+
+### `moveLink`
+
+Moves a link from one folder to another by splicing it out of the source folder's `links` array and appending it to the destination folder's `links` array. An activity entry (`"move"`) is recorded.
+
+<ParamField body="action" type="string" required>
+  Must be `"moveLink"`.
+</ParamField>
+
+<ParamField body="folderId" type="string" required>
+  ID of the source folder currently containing the link.
+</ParamField>
+
+<ParamField body="linkId" type="string" required>
+  ID of the link to move.
+</ParamField>
+
+<ParamField body="targetFolderId" type="string" required>
+  ID of the destination folder to move the link into.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Admin password.
+</ParamField>
+
+```bash
+curl -X POST https://your-app.vercel.app/api/bookmarks \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "action": "moveLink",
+    "folderId": "hubs",
+    "linkId": "home",
+    "targetFolderId": "proxies",
+    "password": "s3cr3t"
+  }'
+```
+
+---
+
+### `importData`
+
+Replaces the entire bookmark dataset with the supplied `BookmarksData` payload. The payload is normalized (missing `activity` and `settings` keys are populated with defaults) and an activity entry (`"import"`) is appended before saving.
+
+<ParamField body="action" type="string" required>
+  Must be `"importData"`.
+</ParamField>
+
+<ParamField body="payload" type="object" required>
+  A valid `BookmarksData` object. Must contain a `folders` array; returns HTTP `400` (`"Invalid file"`) if it does not.
+
+  <Expandable title="payload fields">
+    <ParamField body="folders" type="Folder[]" required>
+      Array of folder objects to import. Each folder must have at minimum `id`, `name`, and `emoji` fields.
+    </ParamField>
+    <ParamField body="activity" type="ActivityEntry[]">
+      Optional existing activity log to carry over.
+    </ParamField>
+    <ParamField body="settings" type="SiteSettings">
+      Optional site settings to restore.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Admin password.
+</ParamField>
+
+```bash
+curl -X POST https://your-app.vercel.app/api/bookmarks \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "action": "importData",
+    "payload": {
+      "folders": [
+        {
+          "id": "work",
+          "name": "Work",
+          "emoji": "💼",
+          "links": []
+        }
+      ]
+    },
+    "password": "s3cr3t"
+  }'
+```
+
+---
+
+### `setAnnouncement`
+
+Sets or clears the site-wide announcement banner text stored in `settings.announcement`. The banner is displayed to all visitors. Pass an empty string to hide the banner.
+
+<ParamField body="action" type="string" required>
+  Must be `"setAnnouncement"`.
+</ParamField>
+
+<ParamField body="text" type="string" required>
+  The announcement message to display. Pass `""` to clear the banner.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Admin password.
+</ParamField>
+
+```bash
+# Set a banner
+curl -X POST https://your-app.vercel.app/api/bookmarks \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"setAnnouncement","text":"Maintenance on Sunday 2am UTC","password":"s3cr3t"}'
+
+# Clear the banner
+curl -X POST https://your-app.vercel.app/api/bookmarks \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"setAnnouncement","text":"","password":"s3cr3t"}'
+```
+
+---
+
+### `reset`
+
+Replaces all data with the built-in default seed dataset (the "Hubs", "Proxies", and "Helios & Gust" starter folders and their links). An activity entry (`"reset"`) is recorded.
+
+<Warning>
+  `reset` is irreversible and takes effect immediately for all visitors. The previous state is saved to the Redis key `bookmarks:shared:prev` as a one-step backup, but there is no automated restore action.
+</Warning>
+
+<ParamField body="action" type="string" required>
+  Must be `"reset"`.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Admin password.
+</ParamField>
+
+```bash
+curl -X POST https://your-app.vercel.app/api/bookmarks \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"reset","password":"s3cr3t"}'
+```
+
+---
+
+### `clearAll`
+
+Deletes all folders, all links, and the activity log. Site settings (theme, view mode, sort order, and announcement) are **preserved**. An activity entry (`"clear"`) is appended to the now-empty log before saving.
+
+<Warning>
+  `clearAll` is irreversible and takes effect immediately for all visitors. All bookmark data is permanently deleted. Site settings are the only data retained.
+</Warning>
+
+<ParamField body="action" type="string" required>
+  Must be `"clearAll"`.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Admin password.
+</ParamField>
+
+```bash
+curl -X POST https://your-app.vercel.app/api/bookmarks \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"clearAll","password":"s3cr3t"}'
+```

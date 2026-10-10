@@ -1,0 +1,93 @@
+---
+title: "GET /api/bookmarks — Read Full Bookmark Dataset"
+sidebarTitle: "GET /api/bookmarks"
+description: "Retrieve the complete BookmarksData object including all folders, links, activity log, and site settings. No authentication required."
+---
+
+`GET /api/bookmarks` is the single read endpoint for the Bookmarks API. It returns the complete `BookmarksData` object persisted in Redis, including every folder, all links nested inside each folder, the activity log, and the site-wide settings. No authentication or request body is required — the endpoint is publicly accessible.
+
+## Request
+
+**Method:** `GET`  
+**Path:** `/api/bookmarks`  
+**Body:** none  
+**Headers:** none required
+
+## Response
+
+On success the server responds with HTTP `200` and the full `BookmarksData` JSON object. If Redis is empty or has never been seeded, the server returns the built-in default dataset from `lib/defaultData.ts` (the "Hubs", "Proxies", and "Helios & Gust" starter folders) rather than an empty object.
+
+On failure the server responds with HTTP `500` and `{ "error": "<message>" }`.
+
+<ResponseField name="folders" type="Folder[]" required>
+  Array of all bookmark folders. Each folder contains its own nested `links` array. Always present; may be empty if `clearAll` was called.
+</ResponseField>
+
+<ResponseField name="activity" type="ActivityEntry[]">
+  Ordered list of the 50 most recent mutation events, newest first. Present on every response once normalized; defaults to `[]` if never populated.
+</ResponseField>
+
+<ResponseField name="settings" type="SiteSettings">
+  Site-wide display preferences including theme, view mode, sort order, and the announcement banner text. Defaults to `{ theme: "dark", viewMode: "grid", sortBy: "manual" }` if not previously set.
+</ResponseField>
+
+## Response Example
+
+```json
+{
+  "folders": [
+    {
+      "id": "hubs",
+      "name": "Hubs",
+      "emoji": "🏠",
+      "pinned": true,
+      "color": "#7c6cff",
+      "createdAt": "2024-01-15T10:00:00.000Z",
+      "links": [
+        {
+          "id": "home",
+          "name": "Home",
+          "url": "https://example.com",
+          "clicks": 12,
+          "tags": ["main"],
+          "favorite": false,
+          "createdAt": "2024-01-15T10:00:00.000Z"
+        }
+      ]
+    }
+  ],
+  "activity": [
+    {
+      "id": "uuid-here",
+      "action": "add",
+      "detail": "Added link \"Home\"",
+      "at": "2024-01-15T10:00:00.000Z"
+    }
+  ],
+  "settings": {
+    "theme": "dark",
+    "viewMode": "grid",
+    "sortBy": "manual",
+    "announcement": ""
+  }
+}
+```
+
+## Default Seed Data
+
+<Note>
+  If the Redis key `bookmarks:shared` is missing or empty, `getBookmarks()` automatically returns the default seed dataset defined in `lib/defaultData.ts`. This ensures the UI always has something meaningful to render on a fresh deployment. The seed data is **not** written back to Redis until the first mutation is performed.
+</Note>
+
+## TypeScript Example
+
+```typescript
+const res = await fetch('https://your-app.vercel.app/api/bookmarks');
+const data: BookmarksData = await res.json();
+console.log(data.folders.length, 'folders');
+```
+
+## See Also
+
+- [POST Actions](/api/actions) — mutate bookmarks data
+- [Data Types](/api/types) — full `BookmarksData`, `Folder`, `Link`, `ActivityEntry`, and `SiteSettings` definitions

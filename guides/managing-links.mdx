@@ -1,0 +1,99 @@
+---
+title: "Adding, Editing, and Deleting Links in Bookmarks"
+sidebarTitle: "Managing Links"
+description: "How to add new links to any folder, edit link metadata, copy URLs, move links between folders, toggle favorites, and delete links in Bookmarks."
+---
+
+Links are the core content of Bookmarks. Every link belongs to exactly one folder and is visible to all visitors the moment it is saved. Most read actions — clicking, copying a URL, starring — require no credentials. Write actions that could affect everyone, such as editing or deleting, require the admin password.
+
+<Note>
+  **Adding** a link is intentionally public and requires no password, so any visitor can contribute to the shared collection. **Editing**, **moving**, and **deleting** links require the admin password to prevent accidental or malicious changes.
+</Note>
+
+## Adding a Link
+
+<Steps>
+  <Step title="Open the Add Website modal">
+    Click **＋ Add Website** in the toolbar, or open the command palette (⌘K / Ctrl+K) and select **＋ Add Website**. The modal opens pre-focused on the Name field.
+  </Step>
+  <Step title="Fill in the required fields">
+    Enter the **Name** (the display title) and the full **URL** including the `https://` scheme. Both fields are required — the form will not submit without them.
+  </Step>
+  <Step title="Choose a folder">
+    Select the destination **Folder** from the dropdown. The list shows every existing folder with its emoji. At least one folder must exist before you can add a link.
+  </Step>
+  <Step title="Add optional metadata">
+    Optionally enter **Tags** as a comma-separated list (e.g. `proxy, school, tools`) and any free-text **Notes**. Tags become filterable chips; notes appear as a 📝 indicator on the card.
+  </Step>
+  <Step title="Submit">
+    Click **Add for everyone**. The link is written to the shared Upstash Redis store and becomes visible to all visitors immediately. A toast notification confirms the addition.
+  </Step>
+</Steps>
+
+## Link Card UI
+
+Each link renders as a card (grid mode) or a full-width row (list mode). The card displays:
+
+- **Favicon** — fetched from `https://www.google.com/s2/favicons?domain=<host>&sz=64`, 28 × 28 px; falls back to a neutral globe icon if unavailable
+- **Name** — the link's display title; a ⭐ prefix appears if the link is starred
+- **URL** — the address with the `https://` prefix stripped for brevity
+- **Tag chips** — each tag rendered as a small inline badge
+- **👁 click count** — shown when the link has at least one recorded click
+- **📝 notes indicator** — shown when the link has notes; hover to read the full note text
+
+A colored left-border accent is shown on cards whose parent folder has a `color` set.
+
+## Hover Actions
+
+Hovering a link card reveals a row of icon buttons on the right edge:
+
+<CardGroup cols={2}>
+  <Card title="★ Favorite" icon="star">
+    Toggles `favorite` on the link. No password required. Adds or removes the link from the ⭐ Favorites bar at the top of the page. The star is highlighted gold when active.
+  </Card>
+  <Card title="⎘ Copy URL" icon="copy">
+    Copies the full URL to the clipboard and shows a brief toast confirmation. No password required.
+  </Card>
+  <Card title="✎ Edit" icon="pencil">
+    Opens the Edit Link modal pre-filled with the current values. Requires the admin password (or an active admin session).
+  </Card>
+  <Card title="→ Move" icon="arrow-right">
+    Opens the Move Link modal to transfer the link to a different folder. Requires the admin password.
+  </Card>
+  <Card title="✕ Delete" icon="xmark">
+    Opens a confirmation modal. Requires the admin password. Deletion affects all visitors immediately.
+  </Card>
+</CardGroup>
+
+When admin mode is not already unlocked, the ✎ edit and → move buttons are hidden; they appear automatically once the admin session is active.
+
+## Editing a Link
+
+Click the **✎** button on a link card to open the Edit Link modal. If admin mode is already unlocked (via the 🔐 Admin panel), the form submits with the cached password automatically. If not yet unlocked, an **Admin password** field appears at the bottom of the form.
+
+The editable fields are:
+
+| Field | Notes |
+|---|---|
+| **Name** | Required; the display title |
+| **URL** | Required; full address |
+| **Tags** | Comma-separated; replaces the existing tag list entirely |
+| **Notes** | Free text; leave empty to remove |
+
+Click **Save** to apply changes. The `updatedAt` timestamp on the link is refreshed automatically and the change is logged in the activity feed.
+
+## Moving a Link
+
+Click the **→** button on a link card to open the Move modal. Select the **target folder** from the dropdown (all folders are listed). Enter the admin password if the session is not already unlocked, then click **Move**. The link is removed from its current folder and appended to the end of the target folder's link list.
+
+## Deleting a Link
+
+Click the **✕** button on a link card. A confirmation modal appears showing the link name and a warning that the deletion affects everyone. Enter the admin password if the session is not unlocked, then click **Delete**. The link is permanently removed from the database and disappears from all visitors' views instantly.
+
+## Toggling Favorites
+
+Click the **★** button on any link card at any time — no password is required. The link's `favorite` field is toggled in the shared database, so the change is reflected for all visitors. Starred links appear in the **⭐ Favorites** quick-bar at the top of the page for fast access.
+
+## Click Tracking
+
+Every time you click a link's name or URL area (or open it via the Favorites bar, Most Visited bar, or command palette), the app fires a `trackClick` action to the backend. The link's `clicks` counter increments by one in Upstash Redis and the updated count is reflected on the card's 👁 badge. This data feeds the **🔥 Most Visited** bar, which always shows the top 8 links by total click count.

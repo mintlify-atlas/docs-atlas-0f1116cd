@@ -1,0 +1,95 @@
+{
+  "projectType": "saas",
+  "projectName": "Bookmarks",
+  "projectDescription": "A shared, real-time bookmark manager built with Next.js and Upstash Redis, letting every visitor see and contribute to the same organized link collection.",
+  "theme": "luma",
+  "primaryColor": "#7c6cff",
+  "lightColor": "#9588ff",
+  "darkColor": "#5b4cf0",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "configuration"
+            ]
+          },
+          {
+            "group": "Using the App",
+            "pages": [
+              "guides/browsing",
+              "guides/managing-links",
+              "guides/folders",
+              "guides/admin"
+            ]
+          },
+          {
+            "group": "Data & Import/Export",
+            "pages": [
+              "guides/import-export",
+              "guides/activity-log"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "REST API",
+            "pages": [
+              "api/overview",
+              "api/get-bookmarks",
+              "api/actions"
+            ]
+          },
+          {
+            "group": "Data Types",
+            "pages": [
+              "api/types"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Real-time shared bookmark list — all visitors see the same data",
+    "Folder organization with emoji, color, and pin support",
+    "Command palette (⌘K) for instant link search and navigation",
+    "Click tracking, favorites, and Most Visited quick-bar",
+    "Tag-based filtering and multiple sort modes",
+    "Admin panel with password protection for editing/deleting",
+    "Import/export bookmarks as JSON or Netscape HTML",
+    "Dark and light theme support",
+    "Upstash Redis backend with automatic safe-guard against accidental data loss",
+    "Deployable to Vercel with zero configuration beyond env vars"
+  ],
+  "publicApiSurface": [
+    "GET /api/bookmarks",
+    "POST /api/bookmarks — action: verifyAdmin",
+    "POST /api/bookmarks — action: addLink",
+    "POST /api/bookmarks — action: editLink",
+    "POST /api/bookmarks — action: deleteLink",
+    "POST /api/bookmarks — action: addFolder",
+    "POST /api/bookmarks — action: editFolder",
+    "POST /api/bookmarks — action: deleteFolder",
+    "POST /api/bookmarks — action: moveLink",
+    "POST /api/bookmarks — action: toggleFavorite",
+    "POST /api/bookmarks — action: trackClick",
+    "POST /api/bookmarks — action: importData",
+    "POST /api/bookmarks — action: setAnnouncement",
+    "POST /api/bookmarks — action: reset",
+    "POST /api/bookmarks — action: clearAll",
+    "interface Link",
+    "interface Folder",
+    "interface BookmarksData",
+    "interface SiteSettings",
+    "interface ActivityEntry"
+  ]
+}

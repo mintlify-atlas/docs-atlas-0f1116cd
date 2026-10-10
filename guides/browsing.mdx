@@ -1,0 +1,112 @@
+---
+title: "Browsing and Searching Your Bookmark Collection"
+sidebarTitle: "Browsing"
+description: "How to navigate, search, filter by tag, sort, and use the command palette to find any link in your Bookmarks collection instantly."
+---
+
+Every visitor to the Bookmarks site sees the exact same live collection — changes made by anyone appear immediately for everyone. The page is designed to help you find any link quickly, whether you prefer browsing folders visually, typing a search query, filtering by tag, or firing off the keyboard-driven command palette.
+
+## Page Layout
+
+The page is structured from top to bottom as follows:
+
+- **Header** — site title, subtitle, and a live sync badge
+- **Announcement banner** — an optional message set by an admin, shown across the full width (hidden when empty)
+- **Stats strip** — four chips showing the total folder count, link count, cumulative click count, and number of starred links
+- **Toolbar** — action buttons: ＋ Add Website, 📁 New Folder, 🎲 Random, ⌘K palette, theme toggle, view-mode toggle, 🔐 Admin
+- **Search bar** — text input, tag filter dropdown, and sort-mode dropdown
+- **⭐ Favorites bar** — horizontal scrollable quick-row (only shown when at least one link is starred)
+- **🔥 Most Visited bar** — horizontal quick-row of the top clicked links (only shown when at least one link has been clicked)
+- **Folder sections** — the main content area, one `<section>` per folder
+- **Footer** — attribution and keyboard shortcut reminder
+
+## Stats Strip
+
+The stats strip gives an at-a-glance summary of the shared collection without opening any panel. The four chips are live-computed from the data loaded on page open:
+
+| Chip | What it counts |
+|---|---|
+| **folders** | Total number of folders |
+| **links** | Total links across all folders |
+| **clicks** | Sum of every link's click counter |
+| **starred** | Links with `favorite: true` |
+
+## Search Bar
+
+The search bar filters every visible folder in real time as you type. Matching is case-insensitive and checks four fields on each link:
+
+- **Name** — the display title of the link
+- **URL** — the full address
+- **Notes** — any notes attached to the link
+- **Tags** — all tag strings on the link
+
+Folders whose links produce zero matches are hidden entirely while a search is active. Clear the input to restore all folders.
+
+## Tag Filter
+
+The dropdown next to the search input lists every unique tag found across all links, sorted alphabetically. Selecting a tag shows only links that carry that exact tag, across every folder simultaneously. The tag filter stacks with the text search — both conditions must be satisfied for a link to appear. Select **All tags** to remove the filter.
+
+## Sort Modes
+
+The rightmost dropdown in the search bar controls the order links appear within each folder:
+
+| Mode | Behaviour |
+|---|---|
+| **Manual order** | Links appear in the order they were added (default) |
+| **Name A–Z** | Alphabetical ascending by link name |
+| **Newest** | Most-recently created links first, by `createdAt` timestamp |
+| **Most clicked** | Highest `clicks` count first |
+
+Sort is applied per-folder independently and does not affect folder order.
+
+## View Modes
+
+The **☰ List / ▦ Grid** button in the toolbar toggles between two layouts:
+
+- **Grid** (default) — links render as compact cards arranged in a responsive multi-column grid. Each card shows a 28 × 28 px favicon, name, truncated URL, tag chips, and the click-count badge.
+- **List** — links render as full-width rows with the same information laid out horizontally, better for dense collections or narrow screens.
+
+The active mode is stored in the site's shared settings and is remembered across page loads for all visitors.
+
+## Favorites Bar
+
+Any link starred with the ★ button gains `favorite: true` in the database. Starred links appear as pill-shaped quick-chips in the ⭐ Favorites bar above the folder list. Each chip shows the site favicon and name; clicking it opens the link in a new tab and increments the click counter. The bar is horizontally scrollable when there are many favorites.
+
+## Most Visited Bar
+
+The 🔥 Most Visited bar shows the **top 8 links** by click count. Only links with at least one recorded click are included — the bar is hidden entirely when nothing has been clicked yet. Like the Favorites bar, each chip shows the favicon, name, and click count; clicking opens the link in a new tab.
+
+## Command Palette
+
+The command palette is the fastest way to navigate the entire collection without scrolling.
+
+<Tip>
+  Press **⌘K** (Mac) or **Ctrl+K** (Windows / Linux) from anywhere on the page to open the palette instantly. Press **Escape** to close it.
+</Tip>
+
+Typing in the palette runs a fuzzy search across every link's name and URL. The palette shows up to **12 results** and always surfaces four built-in actions at the top when the query is empty or matches:
+
+| Action | What it does |
+|---|---|
+| 🎲 Random Bookmark | Opens a random link from the collection |
+| 🔐 Admin Menu | Opens the admin login or panel |
+| 📁 New Folder | Opens the New Folder modal |
+| ＋ Add Website | Opens the Add Website modal |
+
+Below the built-in actions, matching links are listed with the link name on the left and its parent folder name on the right. Clicking any result opens that link in a new tab and closes the palette.
+
+## Random Bookmark
+
+The 🎲 **Random** button in the toolbar (also available in the command palette) picks a random link from the entire collection and opens it in a new tab. Its click counter is incremented as normal. If the collection is empty, a brief toast notification is shown instead.
+
+## Theme Toggle
+
+The ☀️ / 🌙 button in the toolbar switches between **light** and **dark** themes. The preference is stored in the shared site settings (`SiteSettings.theme`) and persists across page loads for all visitors — changing the theme affects everyone currently viewing the site.
+
+## Folder Collapse
+
+Click anywhere on a folder's header bar to collapse or expand that folder. The ▾ chevron points down when expanded and ▸ when collapsed. Collapse state is stored only in local React state — it resets when the page is refreshed and is not shared with other visitors.
+
+## Open All in Folder
+
+Every folder header includes an **⧉** button. Clicking it opens every link in that folder as a new browser tab at once. A toast notification confirms how many tabs were opened. Use this with a folder of related resources you want to review together.
