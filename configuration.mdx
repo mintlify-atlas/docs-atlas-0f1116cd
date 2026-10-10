@@ -1,7 +1,7 @@
 ---
 title: "Configure Bookmarks: Environment Variables and Settings"
 sidebarTitle: "Configuration"
-description: "All environment variables, Redis connection options, and runtime site settings available in Bookmarks — including admin password, theme, sort order, and announcement banner."
+description: "Reference for all Bookmarks environment variables, Redis data keys, and runtime site settings including theme, sort order, and admin password."
 ---
 
 Bookmarks is configured through a small set of environment variables that control connectivity and access, plus a `SiteSettings` object stored directly in Redis that governs the runtime appearance and behavior of the UI. Environment variables are read at server startup; site settings are changed live through the Admin panel without requiring a redeployment.

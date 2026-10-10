@@ -27,7 +27,7 @@ Returns the complete dataset — all folders, links, activity log, and site sett
 
 ### `POST /api/bookmarks`
 
-Accepts a JSON body with at minimum an `action` field. Depending on the action, additional fields such as `folderId`, `name`, or `url` are required. Every successful POST returns the full updated `BookmarksData` object, so clients can replace their local state in one step. See [POST Actions](/api/actions) for the complete list of all 15 actions.
+Accepts a JSON body with at minimum an `action` field. Depending on the action, additional fields such as `folderId`, `name`, or `url` are required. Every successful POST returns the full updated `BookmarksData` object, so clients can replace their local state in one step. See [POST Actions](/api/actions) for the complete list of all 14 actions.
 
 ## Authentication
 
@@ -37,7 +37,7 @@ Admin actions require a `password` field in the POST body whose value must match
   If neither `ADMIN_PASSWORD` nor `BOOKMARKS_ADMIN_PASSWORD` is set, the server runs in **dev mode** and all admin actions succeed without a password. Always configure a strong password before deploying to production.
 </Note>
 
-Public actions — `addLink`, `addFolder`, `toggleFavorite`, and `trackClick` — do not require a password and can be called by any visitor. All other actions are admin-only.
+Public actions — `addLink`, `addFolder`, `toggleFavorite`, and `trackClick` — do not require a password and can be called by any visitor. All other actions, including `verifyAdmin`, are admin-only.
 
 ## Response Format
 
@@ -80,4 +80,4 @@ curl -X POST https://your-app.vercel.app/api/bookmarks \
 ## Next Steps
 
 - [GET /api/bookmarks](/api/get-bookmarks) — full response schema and field reference
-- [POST Actions](/api/actions) — all 15 mutation actions with parameters and examples
+- [POST Actions](/api/actions) — all 14 mutation actions with parameters and examples

@@ -113,7 +113,7 @@ Importing replaces the entire Redis dataset with the contents of the uploaded fi
     Press the **📥 Import JSON** card. A hidden file-picker opens automatically.
   </Step>
   <Step title="Select your backup file">
-    Choose the `.json` file you previously exported. The app reads the file in the browser, parses it, and sends the `folders` payload to the API.
+    Choose the `.json` file you previously exported. The app reads the file in the browser, parses it, and sends the full `BookmarksData` payload (including `folders`, `activity`, and `settings`) to the API.
   </Step>
   <Step title="Confirm the success toast">
     A toast notification reading **"Imported!"** confirms that the data has been written to Redis. All visitors see the restored dataset immediately.
@@ -126,9 +126,9 @@ The server applies the following checks before accepting an import:
 
 **Format validation** — the uploaded file must parse as valid JSON and contain a `folders` array. Files that fail this check are rejected client-side before the API is called, and a toast reading `"Invalid JSON file"` is shown.
 
-**Default-seed guard** — the store detects when an import looks like the factory default dataset (folders with IDs `helios-gust`, `hubs`, and `proxies`, with ten or fewer total links). If the guard triggers and the existing dataset has *more* links than the incoming payload, the write is blocked and the API returns:
+**Default-seed guard** — the store detects when an import looks like the factory default dataset (folders with IDs `helios-gust`, `hubs`, and `proxies`, with ten or fewer total links). The write is blocked only when **all three** of the following are true: (a) the incoming data looks like the default seed, (b) the existing dataset has *more* links than the incoming payload, and (c) the existing dataset does **not** itself look like the default seed. When all three conditions are met, the API returns:
 
-```
+```text
 Refusing to overwrite saved bookmarks with the default set.
 ```
 

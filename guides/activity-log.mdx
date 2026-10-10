@@ -29,25 +29,26 @@ interface ActivityEntry {
 
 ## Actions that generate log entries
 
-The table below lists every action that produces a log entry, along with the exact `detail` string written to the log. Angle-bracket values (`<name>`, `<folder>`, `<N>`) are substituted with live data at write time.
+The table below lists every action that produces a log entry, along with the `action` field value written to Redis and the exact `detail` string. Angle-bracket values (`<name>`, `<folder>`, `<N>`) are substituted with live data at write time.
 
-| Action | `detail` format |
-|---|---|
-| `addLink` | `Added link "<name>"` |
-| `editLink` | `Edited link "<name>"` |
-| `deleteLink` | `Deleted link "<name>"` |
-| `addFolder` | `Added folder "<name>"` |
-| `editFolder` | `Edited folder "<name>"` |
-| `deleteFolder` | `Deleted folder "<name>"` |
-| `moveLink` | `Moved "<name>" to "<folder>"` |
-| `importData` | `Imported <N> folders` |
-| `reset` | `Reset to defaults` |
-| `clearAll` | `Cleared all bookmarks` |
+| Store action | `action` value | `detail` format |
+|---|---|---|
+| `addLink` | `"add"` | `Added link “<name>”` |
+| `editLink` | `"edit"` | `Edited link “<name>”` |
+| `deleteLink` | `"delete"` | `Deleted link “<name>”` |
+| `addFolder` | `"add"` | `Added folder “<name>”` |
+| `editFolder` | `"edit"` | `Edited folder “<name>”` |
+| `deleteFolder` | `"delete"` | `Deleted folder “<name>”` |
+| `moveLink` | `"move"` | `Moved “<name>” to “<folder>”` |
+| `importData` | `"import"` | `Imported <N> folders` |
+| `reset` | `"reset"` | `Reset to defaults` |
+| `clearAll` | `"clear"` | `Cleared all bookmarks` |
 
-Two actions intentionally do **not** generate log entries:
+Three actions intentionally do **not** generate log entries:
 
 - **`toggleFavorite`** — starring or un-starring a link is treated as a personal preference, not a structural change.
 - **`trackClick`** — click-count increments happen on every link open and would flood the log with noise.
+- **`verifyAdmin`** — password verification is a read-only session check that produces no data change.
 
 ## Viewing the log in the Admin panel
 
@@ -84,7 +85,7 @@ A sample log response might look like:
   {
     "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "action": "add",
-    "detail": "Added link \"GitHub\"",
+    "detail": "Added link “GitHub”",
     "at": "2024-06-01T14:23:05.123Z"
   },
   {
@@ -96,7 +97,7 @@ A sample log response might look like:
   {
     "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
     "action": "delete",
-    "detail": "Deleted link \"Old Site\"",
+    "detail": "Deleted link “Old Site”",
     "at": "2024-06-01T11:55:30.789Z"
   }
 ]

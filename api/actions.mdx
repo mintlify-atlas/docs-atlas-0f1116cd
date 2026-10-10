@@ -1,7 +1,7 @@
 ---
 title: "POST /api/bookmarks — All Mutation Actions Reference"
 sidebarTitle: "POST Actions"
-description: "Complete reference for all 15 POST actions on /api/bookmarks — from addLink and addFolder to importData, reset, and clearAll. Each action returns the full updated dataset."
+description: "Complete reference for all 14 POST actions on /api/bookmarks — from addLink and addFolder to importData, reset, and clearAll. Each action returns the full updated dataset."
 ---
 
 Every mutation in the Bookmarks API is performed by sending a `POST` request to `/api/bookmarks` with a JSON body that includes at minimum an `action` field. The server resolves the action, updates the Redis store, and returns the full updated `BookmarksData` object — so clients can replace their local state in a single round-trip.
@@ -17,26 +17,6 @@ Admin-only actions additionally require a `"password"` field matching the `ADMIN
 ## Public Actions
 
 Public actions do not require a password and can be called by any visitor.
-
----
-
-### `verifyAdmin`
-
-Validates the supplied password against `ADMIN_PASSWORD` without performing any data change. Returns the full current `BookmarksData` so the client can initialise its state immediately after unlocking the admin UI.
-
-<ParamField body="action" type="string" required>
-  Must be `"verifyAdmin"`.
-</ParamField>
-
-<ParamField body="password" type="string" required>
-  The admin password to verify. Returns HTTP `403` if incorrect.
-</ParamField>
-
-```bash
-curl -X POST https://your-app.vercel.app/api/bookmarks \
-  -H 'Content-Type: application/json' \
-  -d '{"action":"verifyAdmin","password":"s3cr3t"}'
-```
 
 ---
 
@@ -62,10 +42,6 @@ Appends a new link to an existing folder. The link is assigned a UUID, a `create
 
 <ParamField body="tags" type="string | string[]">
   Optional tags. Pass an array of strings (`["tag1","tag2"]`) or a single comma-separated string (`"tag1,tag2"`). Empty entries are filtered out.
-</ParamField>
-
-<ParamField body="notes" type="string">
-  Optional freeform notes attached to the link.
 </ParamField>
 
 <ParamField body="color" type="string">
@@ -169,6 +145,26 @@ All admin actions require a `"password"` field in the request body matching the 
 
 ---
 
+### `verifyAdmin`
+
+Validates the supplied password against `ADMIN_PASSWORD` without performing any data change. Returns the full current `BookmarksData` so the client can initialise its state immediately after unlocking the admin UI.
+
+<ParamField body="action" type="string" required>
+  Must be `"verifyAdmin"`.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  The admin password to verify. Returns HTTP `403` if incorrect.
+</ParamField>
+
+```bash
+curl -X POST https://your-app.vercel.app/api/bookmarks \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"verifyAdmin","password":"s3cr3t"}'
+```
+
+---
+
 ### `editLink`
 
 Updates one or more metadata fields on an existing link. Only fields that are present and non-empty in the request body are applied — omitted fields are left unchanged. Sets `updatedAt` to the current timestamp. An activity entry (`"edit"`) is recorded.
@@ -195,10 +191,6 @@ Updates one or more metadata fields on an existing link. Only fields that are pr
 
 <ParamField body="tags" type="string | string[]">
   Replacement tag list. Accepts an array or a comma-separated string. Passing `""` clears all tags.
-</ParamField>
-
-<ParamField body="notes" type="string">
-  Replacement notes text.
 </ParamField>
 
 <ParamField body="color" type="string">

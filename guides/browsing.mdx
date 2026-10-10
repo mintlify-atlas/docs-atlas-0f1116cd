@@ -1,5 +1,5 @@
 ---
-title: "Browsing and Searching Your Bookmark Collection"
+title: "Browsing and Searching Your Shared Bookmark Collection"
 sidebarTitle: "Browsing"
 description: "How to navigate, search, filter by tag, sort, and use the command palette to find any link in your Bookmarks collection instantly."
 ---
@@ -66,7 +66,7 @@ The **☰ List / ▦ Grid** button in the toolbar toggles between two layouts:
 - **Grid** (default) — links render as compact cards arranged in a responsive multi-column grid. Each card shows a 28 × 28 px favicon, name, truncated URL, tag chips, and the click-count badge.
 - **List** — links render as full-width rows with the same information laid out horizontally, better for dense collections or narrow screens.
 
-The active mode is stored in the site's shared settings and is remembered across page loads for all visitors.
+The active mode is stored in local React state for the current browser session. On the next page load it is initialised from the value stored in the shared site settings, but the toggle button does not write back to the database.
 
 ## Favorites Bar
 
@@ -101,7 +101,7 @@ The 🎲 **Random** button in the toolbar (also available in the command palette
 
 ## Theme Toggle
 
-The ☀️ / 🌙 button in the toolbar switches between **light** and **dark** themes. The preference is stored in the shared site settings (`SiteSettings.theme`) and persists across page loads for all visitors — changing the theme affects everyone currently viewing the site.
+The ☀️ / 🌙 button in the toolbar switches between **light** and **dark** themes. The preference is stored in local React state for the current browser session. On the next page load it is initialised from the value stored in the shared site settings, but the toggle button does not write back to the database — each visitor's theme choice is independent.
 
 ## Folder Collapse
 
